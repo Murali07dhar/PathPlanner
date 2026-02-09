@@ -1,0 +1,511 @@
+import React, { useState, useEffect } from 'react';
+import { 
+  Plus, 
+  BookOpen, 
+  ChevronRight, 
+  Layout, 
+  X, 
+  ArrowLeft, 
+  MoreVertical, 
+  ArrowUp, 
+  ArrowDown, 
+  Trash2, 
+  ExternalLink,
+  Link as LinkIcon,
+  GripVertical,
+  Terminal
+} from 'lucide-react';
+
+// --- Utility: Unique ID Generator ---
+const generateId = () => Math.random().toString(36).substr(2, 9);
+
+// --- Component: Task Item (The Node in the Rope) ---
+const TaskItem = ({ task, index, isFirst, isLast, onUpdate, onDelete, onMove }) => {
+  const [isEditing, setIsEditing] = useState(!task.title);
+
+  const handleSave = () => {
+    if (!task.title.trim()) return;
+    setIsEditing(false);
+  };
+
+  return (
+    <div className="relative flex items-start gap-4 group">
+      {/* The Rope Visuals */}
+      <div className="flex flex-col items-center mt-1">
+        {/* Top connector (hide if first) */}
+        {!isFirst && <div className="h-4 w-0.5 bg-green-900" />}
+        
+        {/* Node Circle */}
+        <div className={`z-10 w-6 h-6 rounded-full border-2 border-green-500 shadow-[0_0_10px_rgba(34,197,94,0.4)] flex items-center justify-center
+          ${task.isCompleted ? 'bg-green-500' : 'bg-black'}`}>
+          <div className={`w-1.5 h-1.5 rounded-full ${task.isCompleted ? 'bg-black' : 'bg-green-500'}`} />
+        </div>
+
+        {/* Bottom connector (grow to fill space, hide if last) */}
+        {!isLast && <div className="flex-1 w-0.5 bg-green-900 min-h-[4rem]" />}
+      </div>
+
+      {/* Task Card */}
+      <div className="flex-1 pb-8">
+        <div className={`bg-zinc-900 rounded-xl border p-4 transition-all duration-200
+          ${isEditing ? 'border-green-500 shadow-[0_0_15px_rgba(34,197,94,0.15)]' : 'border-green-900 shadow-sm hover:border-green-600'}`}>
+          
+          {isEditing ? (
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="Task Title"
+                className="w-full text-lg font-bold text-green-400 bg-black/50 border border-green-900 rounded px-2 py-1 focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none placeholder:text-green-900"
+                value={task.title}
+                onChange={(e) => onUpdate({ ...task, title: e.target.value })}
+                autoFocus
+              />
+              <textarea
+                placeholder="Description (optional)"
+                rows="2"
+                className="w-full text-sm text-green-600 bg-black/50 border border-green-900 rounded px-2 py-1 focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none placeholder:text-green-900 resize-none"
+                value={task.description || ''}
+                onChange={(e) => onUpdate({ ...task, description: e.target.value })}
+              />
+              <div className="flex items-center gap-2 bg-black/30 p-2 rounded border border-green-900">
+                <LinkIcon size={16} className="text-green-700" />
+                <input
+                  type="text"
+                  placeholder="https://example.com/resource"
+                  className="flex-1 bg-transparent text-sm text-green-500 placeholder:text-green-900 border-none p-0 focus:ring-0"
+                  value={task.link || ''}
+                  onChange={(e) => onUpdate({ ...task, link: e.target.value })}
+                />
+              </div>
+              <button 
+                onClick={handleSave}
+                disabled={!task.title.trim()}
+                className="w-full py-2 bg-green-700 text-black rounded text-sm font-bold hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed uppercase tracking-wide"
+              >
+                Save Protocol
+              </button>
+            </div>
+          ) : (
+            <div>
+              <div className="flex justify-between items-start">
+                <h4 className="text-lg font-bold text-green-400 tracking-tight">{task.title}</h4>
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button 
+                    onClick={() => onMove(index, -1)} 
+                    disabled={isFirst}
+                    className="p-1 hover:bg-green-900/30 rounded text-green-800 hover:text-green-400 disabled:opacity-30"
+                  >
+                    <ArrowUp size={16} />
+                  </button>
+                  <button 
+                    onClick={() => onMove(index, 1)} 
+                    disabled={isLast}
+                    className="p-1 hover:bg-green-900/30 rounded text-green-800 hover:text-green-400 disabled:opacity-30"
+                  >
+                    <ArrowDown size={16} />
+                  </button>
+                  <div className="w-px h-4 bg-green-900 mx-1" />
+                  <button 
+                    onClick={() => setIsEditing(true)}
+                    className="p-1 hover:bg-green-900/30 rounded text-green-800 hover:text-green-400"
+                  >
+                    Edit
+                  </button>
+                  <button 
+                    onClick={() => onDelete(task.id)}
+                    className="p-1 hover:bg-red-900/20 rounded text-green-800 hover:text-red-500"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+              
+              {task.description && (
+                <p className="text-green-700 text-sm mt-1 mb-3 font-medium">{task.description}</p>
+              )}
+
+              {task.link && (
+                <a 
+                  href={task.link} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-900/20 border border-green-900/50 text-green-500 text-sm font-medium rounded hover:bg-green-900/40 hover:border-green-500 transition-all"
+                >
+                  <ExternalLink size={14} />
+                  Access Data
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Component: Path Editor View ---
+const PathEditor = ({ course, onBack, onUpdateCourse }) => {
+  const [tasks, setTasks] = useState(course.tasks || []);
+
+  // Update the parent state whenever local tasks change
+  useEffect(() => {
+    onUpdateCourse({ ...course, tasks });
+  }, [tasks]);
+
+  const addTask = () => {
+    const newTask = {
+      id: generateId(),
+      title: '',
+      description: '',
+      link: '',
+      isCompleted: false
+    };
+    setTasks([...tasks, newTask]);
+  };
+
+  const updateTask = (updatedTask) => {
+    setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
+  };
+
+  const deleteTask = (taskId) => {
+    if (confirm('Delete this protocol node?')) {
+      setTasks(tasks.filter(t => t.id !== taskId));
+    }
+  };
+
+  const moveTask = (index, direction) => {
+    const newTasks = [...tasks];
+    const targetIndex = index + direction;
+    if (targetIndex >= 0 && targetIndex < newTasks.length) {
+      [newTasks[index], newTasks[targetIndex]] = [newTasks[targetIndex], newTasks[index]];
+      setTasks(newTasks);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-black text-green-500 font-mono pb-20 selection:bg-green-900 selection:text-green-100">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-30 bg-black/90 backdrop-blur-sm border-b border-green-900 shadow-[0_4px_20px_-10px_rgba(34,197,94,0.3)]">
+        <div className="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
+          <button 
+            onClick={onBack}
+            className="flex items-center text-green-700 hover:text-green-400 transition-colors font-bold uppercase tracking-wider text-sm"
+          >
+            <ArrowLeft size={18} className="mr-2" />
+            Return to Matrix
+          </button>
+          <div className="flex items-center gap-3">
+             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_#22c55e]"></div>
+             <span className="text-xs text-green-800 font-bold uppercase tracking-widest">System Synced</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-3xl mx-auto px-4 py-8">
+        <div className="mb-8 border-b border-green-900/50 pb-6">
+          <h1 className="text-3xl font-bold text-green-400 mb-2 tracking-tight drop-shadow-[0_0_8px_rgba(34,197,94,0.5)]">
+            {course.title}
+          </h1>
+          <p className="text-green-700 font-medium">{course.description}</p>
+        </div>
+
+        <div className="relative pl-4">
+           {/* The Main Rope Line (Background) */}
+           {tasks.length > 0 && (
+             <div className="absolute left-[27px] top-4 bottom-12 w-0.5 bg-green-900/50 -z-10" />
+           )}
+
+           <div className="space-y-0">
+            {tasks.map((task, index) => (
+              <TaskItem 
+                key={task.id}
+                task={task}
+                index={index}
+                isFirst={index === 0}
+                isLast={index === tasks.length - 1}
+                onUpdate={updateTask}
+                onDelete={deleteTask}
+                onMove={moveTask}
+              />
+            ))}
+           </div>
+
+           {/* Add Button Node */}
+           <div className="flex items-start gap-4 mt-2">
+             <div className="flex flex-col items-center">
+               {tasks.length > 0 && <div className="h-4 w-0.5 bg-green-900" />}
+               <button 
+                 onClick={addTask}
+                 className="w-8 h-8 rounded-full bg-black border border-green-500 text-green-500 hover:bg-green-500 hover:text-black hover:shadow-[0_0_15px_rgba(34,197,94,0.6)] flex items-center justify-center transition-all duration-300 group"
+               >
+                 <Plus size={20} className="group-hover:rotate-90 transition-transform duration-300" />
+               </button>
+             </div>
+             <div className="pt-1">
+               <button 
+                onClick={addTask}
+                className="text-green-500 font-bold hover:text-green-400 hover:shadow-[0_0_20px_rgba(34,197,94,0.4)] transition-all uppercase tracking-wide text-sm"
+               >
+                 Initialize New Construct
+               </button>
+               <p className="text-xs text-green-800 mt-1">Append new data node to sequence</p>
+             </div>
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// --- Component: Dashboard (Previous Main View) ---
+const Dashboard = ({ courses, onCreateClick, onCourseClick }) => {
+  if (courses.length === 0) {
+    return (
+      <div className="max-w-2xl mx-auto mt-10 px-4">
+        <div className="text-center py-20 px-4 bg-zinc-900 rounded-2xl border-2 border-dashed border-green-900 flex flex-col items-center justify-center relative overflow-hidden">
+          <div className="absolute inset-0 bg-[linear-gradient(rgba(0,50,0,0.1)_1px,transparent_1px),linear-gradient(90deg,rgba(0,50,0,0.1)_1px,transparent_1px)] bg-[size:20px_20px] pointer-events-none"></div>
+          <div className="bg-black border border-green-900 p-4 rounded-full shadow-[0_0_15px_rgba(34,197,94,0.2)] mb-4 relative z-10">
+            <Terminal size={32} className="text-green-500" />
+          </div>
+          <h3 className="text-xl font-bold text-green-400 mb-2 relative z-10 tracking-widest">SYSTEM EMPTY</h3>
+          <p className="text-green-700 max-w-sm mb-8 relative z-10 font-medium">
+            No constructs loaded. Initialize a new learning protocol.
+          </p>
+          <button
+            onClick={onCreateClick}
+            className="relative z-10 inline-flex items-center justify-center px-6 py-3 border border-green-500 text-base font-bold rounded text-green-500 hover:bg-green-500 hover:text-black transition-all shadow-[0_0_10px_rgba(34,197,94,0.2)] hover:shadow-[0_0_20px_rgba(34,197,94,0.6)] uppercase tracking-wider"
+          >
+            <Plus size={20} className="mr-2" />
+            Initialize Path
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="mb-6 flex items-center justify-between border-b border-green-900 pb-4">
+        <h2 className="text-2xl font-bold text-green-400 tracking-wider">LOADED CONSTRUCTS</h2>
+        <span className="text-sm text-green-700 font-bold border border-green-900 px-2 py-1 rounded">
+          {courses.length} {courses.length === 1 ? 'FILE' : 'FILES'}
+        </span>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {courses.map((course) => (
+          <div 
+            key={course.id} 
+            onClick={() => onCourseClick(course)}
+            className="bg-zinc-900 p-6 rounded-xl border border-green-900/60 hover:border-green-500 hover:shadow-[0_0_15px_rgba(34,197,94,0.15)] transition-all cursor-pointer group relative overflow-hidden"
+          >
+            {/* Scanline effect on hover */}
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-green-500/5 to-transparent -translate-y-full group-hover:translate-y-full transition-transform duration-1000 ease-in-out pointer-events-none"></div>
+
+            <div className="flex justify-between items-start mb-4">
+              <div className="p-3 bg-black border border-green-900 text-green-500 rounded group-hover:bg-green-900/30 group-hover:text-green-400 transition-colors">
+                <BookOpen size={24} />
+              </div>
+              <span className="text-xs font-bold text-green-800 bg-black border border-green-900/50 px-2 py-1 rounded">
+                {new Date(course.createdAt).toLocaleDateString()}
+              </span>
+            </div>
+            <h3 className="text-lg font-bold text-green-400 mb-2 tracking-tight group-hover:text-green-300">{course.title}</h3>
+            <p className="text-green-700 text-sm line-clamp-2 h-10 font-medium">{course.description}</p>
+            <div className="mt-4 flex items-center justify-between border-t border-green-900/30 pt-4">
+              <div className="text-xs font-bold text-green-800 uppercase tracking-wider">
+                {course.tasks ? course.tasks.length : 0} NODES
+              </div>
+              <div className="flex items-center text-green-500 text-sm font-bold opacity-0 group-hover:opacity-100 transition-opacity uppercase tracking-wide">
+                Access <ChevronRight size={16} className="ml-1" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+// --- Component: Create Modal ---
+const CreateModal = ({ isOpen, onClose, onSave }) => {
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!title.trim()) return;
+    
+    onSave({
+      id: generateId(),
+      title,
+      description,
+      createdAt: new Date().toISOString(),
+      tasks: [] 
+    });
+    
+    setTitle('');
+    setDescription('');
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="bg-zinc-900 border border-green-500 rounded-xl shadow-[0_0_50px_rgba(34,197,94,0.2)] w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="flex justify-between items-center p-6 border-b border-green-900">
+          <h2 className="text-xl font-bold text-green-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+            New Construct
+          </h2>
+          <button onClick={onClose} className="text-green-800 hover:text-green-500 transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-green-700 uppercase tracking-wider mb-1">Construct Identifier</label>
+            <input
+              type="text"
+              placeholder="e.g. AGENT TRAINING v1.0"
+              className="w-full px-4 py-2 bg-black border border-green-800 text-green-400 rounded focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition-all placeholder:text-green-900"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-green-700 uppercase tracking-wider mb-1">Parameters</label>
+            <textarea
+              placeholder="Define construct parameters..."
+              rows="3"
+              className="w-full px-4 py-2 bg-black border border-green-800 text-green-400 rounded focus:border-green-500 focus:ring-1 focus:ring-green-500 outline-none transition-all resize-none placeholder:text-green-900"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </div>
+          
+          <div className="pt-4 flex gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2 border border-green-800 text-green-600 font-bold rounded hover:bg-green-900/20 hover:text-green-400 transition-colors uppercase tracking-wide"
+            >
+              Abort
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2 bg-green-700 text-black font-bold rounded hover:bg-green-600 transition-colors shadow-[0_0_15px_rgba(34,197,94,0.3)] uppercase tracking-wide"
+            >
+              Compile
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+// --- Main Application ---
+export default function App() {
+  const [courses, setCourses] = useState([]);
+  const [activeCourseId, setActiveCourseId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Load from local storage
+  useEffect(() => {
+    const savedCourses = localStorage.getItem('myCoursePaths');
+    if (savedCourses) {
+      setCourses(JSON.parse(savedCourses));
+    }
+    setLoading(false);
+  }, []);
+
+  // Save to local storage
+  useEffect(() => {
+    if (!loading) {
+      localStorage.setItem('myCoursePaths', JSON.stringify(courses));
+    }
+  }, [courses, loading]);
+
+  const handleCreateCourse = (newCourse) => {
+    setCourses([newCourse, ...courses]);
+    setActiveCourseId(newCourse.id);
+  };
+
+  const handleUpdateCourse = (updatedCourse) => {
+    setCourses(courses.map(c => c.id === updatedCourse.id ? updatedCourse : c));
+  };
+
+  const activeCourse = courses.find(c => c.id === activeCourseId);
+
+  return (
+    <div className="min-h-screen bg-black font-mono text-green-500 selection:bg-green-900 selection:text-green-100">
+      
+      {/* Show Path Editor if a course is selected */}
+      {activeCourse ? (
+        <PathEditor 
+          course={activeCourse} 
+          onBack={() => setActiveCourseId(null)}
+          onUpdateCourse={handleUpdateCourse}
+        />
+      ) : (
+        /* Show Dashboard otherwise */
+        <>
+          <header className="bg-black border-b border-green-900/50 sticky top-0 z-30 shadow-[0_0_20px_rgba(0,50,0,0.5)]">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+              <div className="flex items-center gap-2 group cursor-default">
+                <div className="bg-black border border-green-500 text-green-500 p-1.5 rounded group-hover:bg-green-500 group-hover:text-black transition-colors shadow-[0_0_10px_rgba(34,197,94,0.4)]">
+                  <Terminal size={20} />
+                </div>
+                <h1 className="text-xl font-bold text-green-500 tracking-[0.2em] group-hover:text-green-400 transition-colors">
+                  NEO<span className="text-green-700">PATH</span>
+                </h1>
+              </div>
+              
+              {courses.length > 0 && (
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="inline-flex items-center justify-center px-4 py-2 text-sm font-bold rounded border border-green-600 text-green-500 hover:bg-green-600 hover:text-black transition-all shadow-[0_0_10px_rgba(34,197,94,0.2)] uppercase tracking-wide"
+                >
+                  <Plus size={18} className="mr-2" />
+                  New Construct
+                </button>
+              )}
+            </div>
+          </header>
+
+          <main>
+            {loading ? (
+              <div className="flex flex-col items-center justify-center py-40">
+                <div className="relative">
+                   <div className="w-16 h-16 border-4 border-green-900 border-t-green-500 rounded-full animate-spin"></div>
+                   <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-green-700 animate-pulse">
+                     LOAD
+                   </div>
+                </div>
+                <p className="mt-4 text-green-800 text-sm font-bold tracking-widest animate-pulse">DECRYPTING...</p>
+              </div>
+            ) : (
+              <Dashboard 
+                courses={courses} 
+                onCreateClick={() => setIsModalOpen(true)}
+                onCourseClick={(course) => setActiveCourseId(course.id)}
+              />
+            )}
+          </main>
+
+          <CreateModal 
+            isOpen={isModalOpen} 
+            onClose={() => setIsModalOpen(false)}
+            onSave={handleCreateCourse}
+          />
+        </>
+      )}
+    </div>
+  );
+}
